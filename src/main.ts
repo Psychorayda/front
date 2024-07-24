@@ -12,7 +12,7 @@ import store from './store/socket';
 
 const app = createApp(App)
 
-app.use(Antd).use(router)
+app.use(Antd).use(router).use(store)
 
 app.use(VueNativeSock, "ws://localhost:9090/ws/" ,{
     store: store,

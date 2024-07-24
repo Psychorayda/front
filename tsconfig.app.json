@@ -32,8 +32,10 @@
   "include": [
   "src/**/*.ts", 
   "src/**/*.tsx", 
-  "src/**/*.vue", 
-  "src/router/*",
-  "src/store/*.ts",
-  "src/components/*"]
+  "src/**/*.vue",
+  // "src/pages/*", 
+  // "src/router/*",
+  // "src/store/*.ts",
+  // "src/components/*.vue"
+  ]
 }

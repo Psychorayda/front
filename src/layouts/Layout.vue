@@ -1,9 +1,20 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
-import { UserOutlined, LaptopOutlined, NotificationOutlined } from '@ant-design/icons-vue';
+import LoginModal from '../components/LoginModal.vue';
+
 const selectedKeys1 = ref<string[]>(['1']);
 const selectedKeys2 = ref<string[]>(['1']);
 const openKeys = ref<string[]>(['sub1']);
+
+const showLoginModal = ref<boolean>(false);
+
+const openLoginModal = () => {
+    showLoginModal.value = true;
+};
+
+const closeLoginModal = () => {
+    showLoginModal.value = false;
+};
 </script>
 
 <template>
@@ -18,10 +29,15 @@ const openKeys = ref<string[]>(['sub1']);
                 </a-menu-item>
                 <a-menu-item key="2">
                     <nav>
-                        <router-link to="/about">About</router-link>
+                        <router-link to="/device">Device</router-link>
                     </nav>
                 </a-menu-item>
+                <a-menu-item key="3">
+                </a-menu-item>
             </a-menu>
+            <div class="menu-right">
+                <a-button type="primary" @click="openLoginModal">Login</a-button>
+            </div>
         </a-layout-header>
         <a-layout>
             <a-layout-sider width="200" style="background: #fff">
@@ -75,11 +91,34 @@ const openKeys = ref<string[]>(['sub1']);
                     <router-view></router-view>
                 </a-layout-content>
             </a-layout>
+            <LoginModal :open="showLoginModal" :onClose="closeLoginModal"></LoginModal>
         </a-layout>
     </a-layout>
 </template>
 
 <style scoped>
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* .logo {
+    float: left;
+    width: 120px;
+    height: 31px;
+    margin: 16px 24px 16px 0;
+    background: rgba(255, 255, 255, 0.3);
+} */
+
+.menu {
+    flex: 1;
+}
+
+.menu-right {
+    margin-left: auto;
+}
+
 #components-layout-demo-top-side-2 .logo {
     float: left;
     width: 120px;

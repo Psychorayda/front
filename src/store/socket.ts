@@ -120,9 +120,12 @@ const deviceSocketState = {
     message: "" as SocketMessage | "",
     reconnectError: false,
     heartBeatInterval: 5000,
-    heartBeatTimer: 0
+    heartBeatTimer: 0 as number | NodeJS.Timeout
+    // heartBeatTimer: 0
   }
 }
+
+export type DeviceSocketState = typeof deviceSocketState;
 
 
 export default createStore({
@@ -156,7 +159,7 @@ export default createStore({
         // console.log(`SOCKET_HEART_BEAT_PING: ${formattedTime} Count: ${count}`);
       }, state.socket.heartBeatInterval);
     },
-    SOCKET_ONMESSAGE(state, message: { data: string }) {
+    SOCKET_ONMESSAGE(state, message) {
       try {
         const parsedMessage: SocketMessage = JSON.parse(message.data);
         state.socket.message = parsedMessage;
@@ -254,6 +257,14 @@ export default createStore({
     SOCKET_RECONNECT_ERROR(state) {
       state.socket.reconnectError = true;
     }
+  },
+  getters: {
+    deviceList: (state: DeviceSocketState) => {
+      return state.devices
+    },
+    deviceLogs: (state: DeviceSocketState) => {
+      return state.logs
+    },
   },
   modules: {}
 })

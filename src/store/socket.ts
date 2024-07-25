@@ -163,7 +163,7 @@ export default createStore({
       try {
         const parsedMessage: SocketMessage = JSON.parse(message.data);
         state.socket.message = parsedMessage;
-        console.log(parsedMessage);
+        // console.log(parsedMessage);
         let existingDevice: Device | undefined = state.devices.find(device => device.deviceName === parsedMessage.data.deviceName);
         if (parsedMessage.route == "CONN") {
           if (parsedMessage.data.connected) {

@@ -25,9 +25,9 @@ const onFinishFailed = (errorInfo: any) => {
     console.log('Failed:', errorInfo);
 };
 
-const disabled = computed(() => {
-    return !(formState.username && formState.password);
-});
+// const disabled = computed(() => {
+//     return !(formState.username && formState.password);
+// });
 
 const modalText = ref<string>('Content of the modal');
 const confirmLoading = ref<boolean>(false);
@@ -38,10 +38,10 @@ const closeModal = () => {
     confirmLoading.value = false;
 };
 
-const resetNamePassword = () => {
-    formState.username = '';
-    formState.password = '';
-};
+// const resetNamePassword = () => {
+//     formState.username = '';
+//     formState.password = '';
+// };
 
 const router = useRouter();
 
@@ -67,7 +67,7 @@ const handleOk = async () => {
                 }, 2000);
             } else {
                 const errorData = await response.json();
-                alert(`Login failed: ${errorData.detail}`);
+                alert(`Login failed:  ${errorData.detail}`);
                 confirmLoading.value = false;
             }
         } catch (error) {
@@ -99,16 +99,16 @@ const handleOk = async () => {
                 </a-input-password>
             </a-form-item>
 
-            <a-form-item>
+            <!-- <a-form-item>
                 <a-form-item name="remember" no-style>
                     <a-checkbox v-model:checked="formState.remember">Remember me</a-checkbox>
                 </a-form-item>
                 <a-form-item name="reset" no-style>
                     <a-button :disabled="disabled" type="primary" class="login-form-button" @click="resetNamePassword">Reset</a-button>
                 </a-form-item>
-            </a-form-item>
+            </a-form-item> -->
 
-            <a-form-item>
+            <!-- <a-form-item>
                 <a-form-item name="forgot" no-style>
                     <a class="login-form-forgot" href="">Forgot password</a>
                 </a-form-item>
@@ -116,7 +116,10 @@ const handleOk = async () => {
                 <a-form-item name="register" no-style>
                     <a class="login-form-register" href="">Register now!</a>
                 </a-form-item>
-            </a-form-item>
+                <a-form-item name="reset" no-style>
+                    <a-button :disabled="disabled" type="primary" class="login-form-button" @click="resetNamePassword">Reset</a-button>
+                </a-form-item>
+            </a-form-item> -->
         </a-form>
     </a-modal>
 </template>

@@ -45,6 +45,12 @@ const commandsColumns = [
     { title: 'Operation', dataIndex: 'operation' }
 ];
 
+const commandsArgsColumns = [
+    { title: 'Argument Name', dataIndex: 'argName' },
+    { title: 'Type', dataIndex: 'type' },
+    { title: 'Set', dataIndex: 'set' }
+];
+
 // 定义 props 和 commands 的数据源
 const propsDataSource = computed(() => {
     if (!selectedDevice.value) return [];
@@ -56,7 +62,8 @@ const propsDataSource = computed(() => {
             egu: prop.egu,
             desc: prop.desc,
             type: prop.type,
-            operation: prop.writable ? "change" : null
+            operation: prop.writable ? "change" : null,
+            opts: prop.opts
         }));
 });
 
@@ -68,18 +75,27 @@ const commandsDataSource = computed(() => {
             cmdName,
             argsCount: Object.keys(cmd.args).length,
             operation: "send",
-            desc: cmd.desc
+            desc: cmd.desc,
+            args: cmd.args,
+            expanded: false,
+            editable: false
         }));
 });
 
-const editablePropsData = reactive<Record<string, { value: string | number | boolean | null }>>({});
+const commandsArgsDataSource = computed(() => {
+    if (!selectedDevice.value) return [];
+    const selectedCommand = commandsDataSource.value.find(cmd => cmd.expanded);
+    if (!selectedCommand) return [];
+    return Object.entries(selectedCommand.args).map(([argName, type]) => ({
+        key: argName,
+        argName,
+        type,
+        set: selectedCommand.editable ? commandArgsData[selectedCommand.key]?.[argName] : ''
+    }));
+});
 
-const editProp = (key: string) => {
-    const prop = propsDataSource.value.find(item => item.key === key);
-    if (prop) {
-        editablePropsData[key] = { value: prop.value };
-    }
-};
+const editablePropsData = reactive<Record<string, { value: string | number | boolean | null }>>({});
+const commandArgsData = reactive<Record<string, { [argName: string]: string | number | null }>>({});
 
 // 修改 saveProp 函数，使其触发一个处理函数
 const saveProp = (deviceName: string, propName: string) => {
@@ -96,11 +112,9 @@ const cancelPropEdit = (propName: string) => {
 
 // 定义一个处理函数，在保存时调用
 const handleSaveProp = async (deviceName: string, propName: string, newValue: string | number | boolean | null) => {
-    // 在这里执行您希望的操作，比如发出请求或其他业务逻辑
     try {
-        // console.log(`${deviceName} ${propName} ${newValue}`)
         const response = await fetch('http://localhost:9090/teles/set', {
-            method: 'PUT',
+            method: 'POST',
             body: JSON.stringify({
                 peer_name: deviceName,
                 prop_name: propName,
@@ -111,15 +125,67 @@ const handleSaveProp = async (deviceName: string, propName: string, newValue: st
             },
         });
         if (response.ok) {
-            alert("OKKKKKKKKKKKKKKKKK")
+            alert("Property set OK");
         } else {
-            // const errorData = await response.json();
-            alert(`NOOOOOOOOOOOOOOOO`);
+            const errorData = await response.json();
+            alert(`Property set failed: ${errorData.detail}`);
         }
     } catch (error) {
         console.error('Error:', error);
     }
     console.log(`Saving property ${propName} of device ${deviceName} with new value: ${newValue}`);
+};
+
+const confirmEdit = (key: string) => {
+    const prop = propsDataSource.value.find(item => item.key === key);
+    if (prop) {
+        editablePropsData[key] = { value: prop.value };
+    }
+};
+
+const sendCommand = (cmdName: string) => {
+    console.log(cmdName)
+    commandArgsData[cmdName] = {};
+    const command = commandsDataSource.value.find(cmd => cmd.key === cmdName);
+    console.log(command)
+    if (command) {
+        command.expanded = true;
+        command.editable = true;
+    }
+};
+
+const cancelCommand = (cmdName: string) => {
+    const command = commandsDataSource.value.find(cmd => cmd.key === cmdName);
+    if (command) {
+        command.expanded = false;
+        command.editable = false;
+    }
+    delete commandArgsData[cmdName];
+};
+
+const handleSendCommand = async (deviceName: string, cmdName: string, args: Record<string, string | number | null>) => {
+    try {
+        const response = await fetch('http://localhost:9090/teles/send_command', {
+            method: 'POST',
+            body: JSON.stringify({
+                peer_name: deviceName,
+                cmd_name: cmdName,
+                args
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        if (response.ok) {
+            alert("Command sent successfully");
+        } else {
+            const errorData = await response.json();
+            alert(`Command send failed: ${errorData.detail}`);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+    console.log(`Sending command ${cmdName} to device ${deviceName} with args:`, args);
 };
 </script>
 
@@ -140,8 +206,18 @@ const handleSaveProp = async (deviceName: string, propName: string, newValue: st
                 style="margin-top: 16px;">
                 <template #bodyCell="{ column, text, record }">
                     <template v-if="column.dataIndex === 'value'">
-                        <a-input v-if="editablePropsData[record.key]"
-                            v-model:value="editablePropsData[record.key].value" style="margin: -5px 0" />
+                        <template v-if="editablePropsData[record.key]">
+                            <template v-if="Object.keys(record.opts).length > 0">
+                                <a-select v-model:value="editablePropsData[record.key].value"
+                                    style="margin: -5px 0; width: 100%">
+                                    <a-select-option v-for="(option, key) in record.opts" :key="key" :value="key">{{
+        option }}</a-select-option>
+                                </a-select>
+                            </template>
+                            <template v-else>
+                                <a-input v-model:value="editablePropsData[record.key].value" style="margin: -5px 0" />
+                            </template>
+                        </template>
                         <template v-else>
                             {{ text }}
                         </template>
@@ -150,12 +226,12 @@ const handleSaveProp = async (deviceName: string, propName: string, newValue: st
                         <div class="editable-row-operations">
                             <span v-if="editablePropsData[record.key]">
                                 <a-typography-link @click="saveProp(selectedTab, record.key)">Save</a-typography-link>
-                                <a-popconfirm title="Sure to cancel?" @confirm="cancelPropEdit(record.key)">
-                                    <a>Cancel</a>
-                                </a-popconfirm>
+                                <a @click="cancelPropEdit(record.key)">Cancel</a>
                             </span>
                             <span v-else-if="record.operation === 'change'">
-                                <a @click="editProp(record.key)">Edit</a>
+                                <a-popconfirm title="Sure to edit?" @confirm="confirmEdit(record.key)">
+                                    <a>Edit</a>
+                                </a-popconfirm>
                             </span>
                         </div>
                     </template>
@@ -165,14 +241,35 @@ const handleSaveProp = async (deviceName: string, propName: string, newValue: st
                 </template>
             </a-table>
             <a-table :columns="commandsColumns" :data-source="commandsDataSource" :pagination="false" bordered
-                style="margin-top: 16px;">
-                <template #bodyCell="{ column, text, record }">
+                style="margin-top: 16px;" class="components-table-demo-nested">
+                <template #bodyCell="{ column, record }">
                     <template v-if="column.dataIndex === 'operation'">
-                        <a @click="() => { /* handle command execution here */ }">{{ text }}</a>
+                        <span v-if="!commandArgsData[record.key]">
+                            <a-popconfirm title="Sure to send?" @confirm="sendCommand(record.key)">
+                                <a>Send</a>
+                            </a-popconfirm>
+                        </span>
+                        <span v-else>
+                            <a @click="handleSendCommand(selectedTab, record.key, commandArgsData[record.key])">Send</a>
+                            <a @click="cancelCommand(record.key)">Cancel</a>
+                        </span>
                     </template>
-                    <template v-else>
-                        {{ text }}
-                    </template>
+                </template>
+                <template #expandedRowRender>
+                    <a-table :columns="commandsArgsColumns" :data-source="commandsArgsDataSource" :pagination="false">
+                        <template #bodyCell="{ column, text, record }">
+                            <template v-if="column.dataIndex === 'set'">
+                                <template v-if="record.editable">
+                                    <a-input style="margin: -5px 0"
+                                        :value="commandArgsData[record.key]?.[record.argName]"
+                                        @input="(e: InputEvent) => commandArgsData[record.key][record.argName] = (e.target as HTMLInputElement).value" />
+                                </template>
+                                <template v-else>
+                                    {{ text }}
+                                </template>
+                            </template>
+                        </template>
+                    </a-table>
                 </template>
             </a-table>
         </div>

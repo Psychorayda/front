@@ -7,15 +7,16 @@ import 'ant-design-vue/dist/reset.css';
 import VueNativeSock from 'vue-native-websocket-vue3';
 
 import router from './router';
-import store from './store/socket';
+import user_store from './store/user';
+import socket_store from './store/socket';
 
 
 const app = createApp(App)
 
-app.use(Antd).use(router).use(store)
+app.use(Antd).use(router).use(user_store).use(socket_store)
 
 app.use(VueNativeSock, "ws://localhost:9090/ws/" ,{
-    store: store,
+    store: socket_store,
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 3000

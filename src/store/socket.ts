@@ -1,4 +1,6 @@
 import { createStore } from "vuex";
+import createPersistedState from 'vuex-persistedstate';
+
 import app from "../main";
 
 
@@ -128,7 +130,7 @@ const deviceSocketState = {
 export type DeviceSocketState = typeof deviceSocketState;
 
 
-export default createStore({
+const socket_store = createStore({
   state: deviceSocketState,
   mutations: {
     SOCKET_ONOPEN(state, event) {
@@ -266,5 +268,14 @@ export default createStore({
       return state.logs
     },
   },
-  modules: {}
+  modules: {},
+  plugins: [
+    createPersistedState({
+      key: 'deviceSocketState',
+      storage: window.localStorage,
+      paths: ['devices', 'logs', 'pingPong', 'socket']
+    })
+  ]
 })
+
+export default socket_store;

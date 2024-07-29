@@ -41,7 +41,7 @@ const propsList = computed(() => {
             value: prop.value,
             desc: prop.desc,
             type: prop.type,
-            operation: prop.writable ? 'Write' : 'Read-Only'
+            operation: prop.writable ? 'Set' : 'Read-Only'
         }));
 });
 
@@ -115,6 +115,12 @@ const cmdsList = computed(() => {
         }));
 });
 
+const selectedCmdArgs = computed(() => {
+    if (!selectedCmd.value) return [];
+    const cmd = cmdsList.value.find(item => item.key === selectedCmd.value);
+    return cmd ? cmd.args : [];
+});
+
 const openSendCmdModal = ref<boolean>(false);
 const selectedCmd = ref<string | null>(null);
 const currCmdInputs = ref<{ [key: string]: any }>({});
@@ -134,14 +140,22 @@ const onSendCmdClick = (cmdName: string) => {
 const handleCmdOk = async () => {
     if (!selectedCmd.value || !selectedTab.value) return;
 
-    console.log()
     confirmLoading.value = true;
+
+    let commandString;
+    const cmdArgs = Object.values(currCmdInputs.value).filter(arg => arg !== '').join(',');
+    if (cmdArgs.length === 0) {
+        commandString = `${selectedCmd.value}`;
+    } else {
+        commandString = `${selectedCmd.value},${cmdArgs}`;
+    }
+
     try {
         const response = await fetch('http://localhost:9090/teles/cmd', {
             method: 'POST',
             body: JSON.stringify({
                 peer_name: selectedTab.value,
-                command: selectedCmd.value
+                command: commandString
             }),
             headers: {
                 'Content-Type': 'application/json',
@@ -186,10 +200,15 @@ const handleCmdOk = async () => {
                             <a-typography-link @click="() => onWritePropClick(record.key)">
                                 {{ record.operation }}
                             </a-typography-link>
-                            <a-modal v-model:open="openSetPropModal" title="Set Property" :confirm-loading="confirmLoading" 
-                            @ok="handleSetOk">
-                                <p>Device: {{ selectedTab }}.   Property: {{ selectedProp }}.   Type: {{ record.type }}.</p>
-                                <a-input v-model:value="currPropInput" placeholder="Input value you want to set" allow-clear />
+                            <a-modal v-model:open="openSetPropModal" title="Set Property"
+                                :confirm-loading="confirmLoading" @ok="handleSetOk">
+                                <p>Device: {{ selectedTab }}.</p>
+                                <p>Property: {{ selectedProp }}.</p>
+                                <p>Type: {{ record.type }}.</p>
+                                <div>
+                                    <a-input v-model:value="currPropInput" placeholder="Input value you want to set" allow-clear />
+                                </div>
+                                <br />
                             </a-modal>
                         </span>
                     </span>
@@ -209,13 +228,17 @@ const handleCmdOk = async () => {
                             <a-typography-link @click="() => onSendCmdClick(record.key)">
                                 {{ record.operation }}
                             </a-typography-link>
-                            <a-modal v-model:open="openSendCmdModal" title="Send Command" :confirm-loading="confirmLoading" 
-                            @ok="handleCmdOk">
-                                <p>Device: {{ selectedTab }}.   Command: {{ selectedCmd }}.</p>
-                                <div v-for="argName in cmdsList.find(cmd => cmd.key === selectedCmd)?.args" :key="argName">
-                                    <p>{{ argName }}:</p>
-                                    <a-input v-model:value="currCmdInputs[argName]" placeholder="Input {{ argName }}" allow-clear />
+                            <a-modal v-model:open="openSendCmdModal" title="Send Command"
+                                :confirm-loading="confirmLoading" @ok="handleCmdOk">
+                                <p>Device: {{ selectedTab }}.</p>
+                                <p>Command: {{ selectedCmd }}.</p>
+                                <div v-for="(argType, argName) in selectedCmdArgs"
+                                    :key="argName">
+                                    <p>Argument: {{ argName }}({{ argType }})</p>
+                                    <a-input v-model:value="currCmdInputs[argName]" :placeholder="`Input ${argName}`"
+                                        allow-clear />
                                 </div>
+                                <br />
                             </a-modal>
                         </span>
                     </span>

@@ -3,6 +3,7 @@
 import { computed, reactive, ref } from 'vue';
 import { UserOutlined, LockOutlined } from '@ant-design/icons-vue';
 import { useRouter } from 'vue-router';
+import { useStore } from 'vuex';
 
 interface FormState {
     username: string;
@@ -44,6 +45,7 @@ const closeModal = () => {
 // };
 
 const router = useRouter();
+const store = useStore();
 
 const handleOk = async () => {
     modalText.value = 'The modal will be closed after two seconds';
@@ -61,10 +63,13 @@ const handleOk = async () => {
                 },
             });
             if (response.ok) {
+                const userInfo = await response.json()
+                store.dispatch('login', userInfo);
                 setTimeout(() => {
                     closeModal();
                     router.push('/');
                 }, 2000);
+                console.log(store.getters.user)
             } else {
                 const errorData = await response.json();
                 alert(`Login failed:  ${errorData.detail}`);

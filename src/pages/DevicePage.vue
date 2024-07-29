@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useStore } from 'vuex';
 import { Device, PropertyMetaData, CommandMetaData } from '../store/socket';
 
+
 const confirmLoading = ref<boolean>(false);
 
 const store = useStore();

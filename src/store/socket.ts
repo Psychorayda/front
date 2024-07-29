@@ -1,5 +1,5 @@
 import { createStore } from "vuex";
-import createPersistedState from 'vuex-persistedstate';
+// import createPersistedState from 'vuex-persistedstate';
 
 import app from "../main";
 
@@ -110,35 +110,142 @@ export type SocketMessage =
   | { route: "PING"; data: PingMessage }
   | { route: "PONG"; data: PongMessage };
 
-const deviceSocketState = {
-  devices: [] as Array<Device>,
-  logs: [] as Array<Log>,
+export interface deviceSocketState {
+  devices: Array<Device>,
+  logs: Array<Log>,
   pingPong: {
-    ping: "" as PingMessage | "",
-    pong: "" as PongMessage | ""
+    ping: PingMessage | "",
+    pong: PongMessage | ""
   },
   socket: {
-    isConnected: false,
-    message: "" as SocketMessage | "",
-    reconnectError: false,
-    heartBeatInterval: 5000,
-    heartBeatTimer: 0 as number | NodeJS.Timeout
-    // heartBeatTimer: 0
+    isConnected: boolean,
+    message: SocketMessage | "",
+    reconnectError: boolean,
+    heartBeatInterval: number,
+    heartBeatTimer: number | NodeJS.Timeout
   }
 }
 
-export type DeviceSocketState = typeof deviceSocketState;
 
+const state = () => ({
+  deviceSocket: {
+    devices: [] as Array<Device>,
+    logs: [] as Array<Log>,
+    pingPong: {
+      ping: "" as PingMessage | "",
+      pong: "" as PongMessage | ""
+    },
+    socket: {
+      isConnected: false,
+      message: "" as SocketMessage | "",
+      reconnectError: false,
+      heartBeatInterval: 5000,
+      heartBeatTimer: 0 as number | NodeJS.Timeout
+    }
+  } as deviceSocketState
+})
 
-const socket_store = createStore({
-  state: deviceSocketState,
-  mutations: {
-    SOCKET_ONOPEN(state, event) {
-      app.config.globalProperties.$socket = event.currentTarget;
-      state.socket.isConnected = true;
-      console.log("SOCKET_ONOPEN");
-      let count = 0;
-      state.socket.heartBeatTimer = setInterval(() => {
+const getters = {
+  deviceList: (state: {deviceSocket: deviceSocketState}) => {
+    return state.deviceSocket.devices
+  },
+
+  deviceLogs: (state: {deviceSocket: deviceSocketState}) => {
+    return state.deviceSocket.logs
+  },
+}
+
+const actions = {}
+
+const mutations = {
+  SOCKET_ONOPEN(state: deviceSocketState, event: { currentTarget: any; }) {
+    app.config.globalProperties.$socket = event.currentTarget;
+    state.socket.isConnected = true;
+    console.log("SOCKET_ONOPEN");
+    app.config.globalProperties.$socket.send(
+      JSON.stringify({
+        route: "ALL"
+      })
+    );
+    let count = 0;
+    state.socket.heartBeatTimer = setInterval(() => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const formattedTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      if (state.socket.isConnected) {
+        app.config.globalProperties.$socket.send(
+          JSON.stringify({
+            route: "PING",
+            data: {
+              time: formattedTime,
+              count: ++count
+            }
+          })
+        );
+      }
+      // console.log(`SOCKET_HEART_BEAT_PING: ${formattedTime} Count: ${count}`);
+    }, state.socket.heartBeatInterval);
+  },
+  SOCKET_ONMESSAGE(state: deviceSocketState, message: { data: string; }) {
+    try {
+      const parsedMessage: SocketMessage = JSON.parse(message.data);
+      state.socket.message = parsedMessage;
+      // console.log(parsedMessage);
+      let existingDevice: Device | undefined = state.devices.find(device => device.deviceName === parsedMessage.data.deviceName);
+      if (parsedMessage.route == "CONN") {
+        if (parsedMessage.data.connected) {
+          if (!existingDevice) {
+            state.devices.push({
+              deviceName: parsedMessage.data.deviceName,
+              status: { statusInt: 0, statusStr: "" },
+              props: [],
+              commands: []
+            });
+          }
+        } else {
+          if (existingDevice) {
+            state.devices = state.devices.filter(device => device.deviceName !== parsedMessage.data.deviceName);
+          }
+        }
+      } else if (parsedMessage.route == "STATUS") {
+        if (existingDevice) {
+          existingDevice.status = {
+            statusInt: parsedMessage.data.statusInt,
+            statusStr: parsedMessage.data.statusStr
+          };
+        }
+      } else if (parsedMessage.route == "META") {
+        if (existingDevice) {
+          existingDevice.props = Object.keys(parsedMessage.data.metadata).map(propName => ({
+            [propName]: parsedMessage.data.metadata[propName]
+          }));
+        }
+      } else if (parsedMessage.route == "PROP") {
+        if (existingDevice) {
+          const propName = Object.keys(parsedMessage.data.prop)[0];
+          const propValue = parsedMessage.data.prop[propName];
+          const propIndex = existingDevice.props.findIndex(prop => Object.keys(prop)[0] === propName);
+          if (propIndex >= 0) {
+            existingDevice.props[propIndex][propName].value = propValue;
+          } else {
+            existingDevice.props.push({ [propName]: { value: propValue, desc: "", egu: "", writable: false, opts: {}, type: 'STRING' } });
+          }
+        }
+      } else if (parsedMessage.route == "CMD") {
+        if (existingDevice) {
+          existingDevice.commands = Object.keys(parsedMessage.data.commands).map(cmdName => ({
+            [cmdName]: parsedMessage.data.commands[cmdName]
+          }));
+        }
+      } else if (parsedMessage.route == "LOG") {
+        state.logs.push(parsedMessage.data);
+      } else if (parsedMessage.route == "PING") {
+        state.pingPong.ping = parsedMessage.data;
         const now = new Date();
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -147,135 +254,203 @@ const socket_store = createStore({
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
         const formattedTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-        if (state.socket.isConnected) {
-          app.config.globalProperties.$socket.send(
-            JSON.stringify({
-              route: "PING",
-              data: {
-                time: formattedTime,
-                count: ++count
-              }
-            })
-          );
-        }
-        // console.log(`SOCKET_HEART_BEAT_PING: ${formattedTime} Count: ${count}`);
-      }, state.socket.heartBeatInterval);
-    },
-    SOCKET_ONMESSAGE(state, message) {
-      try {
-        const parsedMessage: SocketMessage = JSON.parse(message.data);
-        state.socket.message = parsedMessage;
-        // console.log(parsedMessage);
-        let existingDevice: Device | undefined = state.devices.find(device => device.deviceName === parsedMessage.data.deviceName);
-        if (parsedMessage.route == "CONN") {
-          if (parsedMessage.data.connected) {
-            if (!existingDevice) {
-              state.devices.push({
-                deviceName: parsedMessage.data.deviceName,
-                status: { statusInt: 0, statusStr: "" },
-                props: [],
-                commands: []
-              });
+        app.config.globalProperties.$socket.send(
+          JSON.stringify({
+            route: "PONG",
+            data: {
+              time: formattedTime,
+              count: parsedMessage.data.count
             }
-          } else {
-            if (existingDevice) {
-              state.devices = state.devices.filter(device => device.deviceName !== parsedMessage.data.deviceName);
-            }
-          }
-        } else if (parsedMessage.route == "STATUS") {
-          if (existingDevice) {
-            existingDevice.status = {
-              statusInt: parsedMessage.data.statusInt,
-              statusStr: parsedMessage.data.statusStr
-            };
-          }
-        } else if (parsedMessage.route == "META") {
-          if (existingDevice) {
-            existingDevice.props = Object.keys(parsedMessage.data.metadata).map(propName => ({
-              [propName]: parsedMessage.data.metadata[propName]
-            }));
-          }
-        } else if (parsedMessage.route == "PROP") {
-          if (existingDevice) {
-            const propName = Object.keys(parsedMessage.data.prop)[0];
-            const propValue = parsedMessage.data.prop[propName];
-            const propIndex = existingDevice.props.findIndex(prop => Object.keys(prop)[0] === propName);
-            if (propIndex >= 0) {
-              existingDevice.props[propIndex][propName].value = propValue;
-            } else {
-              existingDevice.props.push({ [propName]: { value: propValue, desc: "", egu: "", writable: false, opts: {}, type: 'STRING' } });
-            }
-          }
-        } else if (parsedMessage.route == "CMD") {
-          if (existingDevice) {
-            existingDevice.commands = Object.keys(parsedMessage.data.commands).map(cmdName => ({
-              [cmdName]: parsedMessage.data.commands[cmdName]
-            }));
-          }
-        } else if (parsedMessage.route == "LOG") {
-          state.logs.push(parsedMessage.data);
-        } else if (parsedMessage.route == "PING") {
-          state.pingPong.ping = parsedMessage.data;
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-          const hours = String(now.getHours()).padStart(2, '0');
-          const minutes = String(now.getMinutes()).padStart(2, '0');
-          const seconds = String(now.getSeconds()).padStart(2, '0');
-          const formattedTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-          app.config.globalProperties.$socket.send(
-            JSON.stringify({
-              route: "PONG",
-              data: {
-                time: formattedTime,
-                count: parsedMessage.data.count
-              }
-            })
-          );
-        } else if (parsedMessage.route == "PONG") {
-          state.pingPong.pong = parsedMessage.data;
-        } else {
-          console.error("Unknown route, please check remote");
-        }
-        // console.log(state.devices)
-      } catch (error) {
-        console.error("Failed to parse message:", message.data, error);
+          })
+        );
+      } else if (parsedMessage.route == "PONG") {
+        state.pingPong.pong = parsedMessage.data;
+      } else {
+        console.error("Unknown route, please check remote");
       }
-    },
-    SOCKET_ONCLOSE(state, event) {
-      state.socket.isConnected = false;
-      clearInterval(state.socket.heartBeatTimer);
-      state.socket.heartBeatTimer = 0;
-      console.log("SOCKET_ONCLOSE: " + new Date());
-      console.log(event);
-    },
-    SOCKET_ONERROR(state, event) {
-      console.error(state, event);
-    },
-    SOCKET_RECONNECT(state, count) {
-      console.info("SOCKET_RECONNECT...", state, count);
-    },
-    SOCKET_RECONNECT_ERROR(state) {
-      state.socket.reconnectError = true;
+      // console.log(state.devices)
+    } catch (error) {
+      console.error("Failed to parse message:", message.data, error);
     }
   },
-  getters: {
-    deviceList: (state: DeviceSocketState) => {
-      return state.devices
-    },
-    deviceLogs: (state: DeviceSocketState) => {
-      return state.logs
-    },
+  SOCKET_ONCLOSE(state: deviceSocketState, event: any) {
+    state.socket.isConnected = false;
+    clearInterval(state.socket.heartBeatTimer);
+    state.socket.heartBeatTimer = 0;
+    console.log("SOCKET_ONCLOSE: " + new Date());
+    console.log(event);
   },
-  modules: {},
-  plugins: [
-    createPersistedState({
-      key: 'deviceSocketState',
-      storage: window.localStorage,
-      paths: ['devices', 'logs', 'pingPong', 'socket']
-    })
-  ]
-})
+  SOCKET_ONERROR(state: deviceSocketState, event: any) {
+    console.error(state, event);
+  },
+  SOCKET_RECONNECT(state: deviceSocketState, count: any) {
+    console.info("SOCKET_RECONNECT...", state, count);
+  },
+  SOCKET_RECONNECT_ERROR(state: deviceSocketState) {
+    state.socket.reconnectError = true;
+  }
+}
 
-export default socket_store;
+export default {
+  namespaced: true,
+  state,
+  getters,
+  actions,
+  mutations,
+  modules: {}
+}
+
+// const socket_store = createStore({
+//   state: deviceSocketState,
+//   mutations: {
+//     SOCKET_ONOPEN(state, event) {
+//       app.config.globalProperties.$socket = event.currentTarget;
+//       state.socket.isConnected = true;
+//       console.log("SOCKET_ONOPEN");
+//       app.config.globalProperties.$socket.send(
+//         JSON.stringify({
+//           route: "ALL"
+//         })
+//       );
+//       let count = 0;
+//       state.socket.heartBeatTimer = setInterval(() => {
+//         const now = new Date();
+//         const year = now.getFullYear();
+//         const month = String(now.getMonth() + 1).padStart(2, '0');
+//         const day = String(now.getDate()).padStart(2, '0');
+//         const hours = String(now.getHours()).padStart(2, '0');
+//         const minutes = String(now.getMinutes()).padStart(2, '0');
+//         const seconds = String(now.getSeconds()).padStart(2, '0');
+//         const formattedTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+//         if (state.socket.isConnected) {
+//           app.config.globalProperties.$socket.send(
+//             JSON.stringify({
+//               route: "PING",
+//               data: {
+//                 time: formattedTime,
+//                 count: ++count
+//               }
+//             })
+//           );
+//         }
+//         // console.log(`SOCKET_HEART_BEAT_PING: ${formattedTime} Count: ${count}`);
+//       }, state.socket.heartBeatInterval);
+//     },
+//     SOCKET_ONMESSAGE(state, message) {
+//       try {
+//         const parsedMessage: SocketMessage = JSON.parse(message.data);
+//         state.socket.message = parsedMessage;
+//         // console.log(parsedMessage);
+//         let existingDevice: Device | undefined = state.devices.find(device => device.deviceName === parsedMessage.data.deviceName);
+//         if (parsedMessage.route == "CONN") {
+//           if (parsedMessage.data.connected) {
+//             if (!existingDevice) {
+//               state.devices.push({
+//                 deviceName: parsedMessage.data.deviceName,
+//                 status: { statusInt: 0, statusStr: "" },
+//                 props: [],
+//                 commands: []
+//               });
+//             }
+//           } else {
+//             if (existingDevice) {
+//               state.devices = state.devices.filter(device => device.deviceName !== parsedMessage.data.deviceName);
+//             }
+//           }
+//         } else if (parsedMessage.route == "STATUS") {
+//           if (existingDevice) {
+//             existingDevice.status = {
+//               statusInt: parsedMessage.data.statusInt,
+//               statusStr: parsedMessage.data.statusStr
+//             };
+//           }
+//         } else if (parsedMessage.route == "META") {
+//           if (existingDevice) {
+//             existingDevice.props = Object.keys(parsedMessage.data.metadata).map(propName => ({
+//               [propName]: parsedMessage.data.metadata[propName]
+//             }));
+//           }
+//         } else if (parsedMessage.route == "PROP") {
+//           if (existingDevice) {
+//             const propName = Object.keys(parsedMessage.data.prop)[0];
+//             const propValue = parsedMessage.data.prop[propName];
+//             const propIndex = existingDevice.props.findIndex(prop => Object.keys(prop)[0] === propName);
+//             if (propIndex >= 0) {
+//               existingDevice.props[propIndex][propName].value = propValue;
+//             } else {
+//               existingDevice.props.push({ [propName]: { value: propValue, desc: "", egu: "", writable: false, opts: {}, type: 'STRING' } });
+//             }
+//           }
+//         } else if (parsedMessage.route == "CMD") {
+//           if (existingDevice) {
+//             existingDevice.commands = Object.keys(parsedMessage.data.commands).map(cmdName => ({
+//               [cmdName]: parsedMessage.data.commands[cmdName]
+//             }));
+//           }
+//         } else if (parsedMessage.route == "LOG") {
+//           state.logs.push(parsedMessage.data);
+//         } else if (parsedMessage.route == "PING") {
+//           state.pingPong.ping = parsedMessage.data;
+//           const now = new Date();
+//           const year = now.getFullYear();
+//           const month = String(now.getMonth() + 1).padStart(2, '0');
+//           const day = String(now.getDate()).padStart(2, '0');
+//           const hours = String(now.getHours()).padStart(2, '0');
+//           const minutes = String(now.getMinutes()).padStart(2, '0');
+//           const seconds = String(now.getSeconds()).padStart(2, '0');
+//           const formattedTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+//           app.config.globalProperties.$socket.send(
+//             JSON.stringify({
+//               route: "PONG",
+//               data: {
+//                 time: formattedTime,
+//                 count: parsedMessage.data.count
+//               }
+//             })
+//           );
+//         } else if (parsedMessage.route == "PONG") {
+//           state.pingPong.pong = parsedMessage.data;
+//         } else {
+//           console.error("Unknown route, please check remote");
+//         }
+//         // console.log(state.devices)
+//       } catch (error) {
+//         console.error("Failed to parse message:", message.data, error);
+//       }
+//     },
+//     SOCKET_ONCLOSE(state, event) {
+//       state.socket.isConnected = false;
+//       clearInterval(state.socket.heartBeatTimer);
+//       state.socket.heartBeatTimer = 0;
+//       console.log("SOCKET_ONCLOSE: " + new Date());
+//       console.log(event);
+//     },
+//     SOCKET_ONERROR(state, event) {
+//       console.error(state, event);
+//     },
+//     SOCKET_RECONNECT(state, count) {
+//       console.info("SOCKET_RECONNECT...", state, count);
+//     },
+//     SOCKET_RECONNECT_ERROR(state) {
+//       state.socket.reconnectError = true;
+//     }
+//   },
+//   getters: {
+//     deviceList: (state: DeviceSocketState) => {
+//       return state.devices
+//     },
+//     deviceLogs: (state: DeviceSocketState) => {
+//       return state.logs
+//     },
+//   },
+//   modules: {},
+//   // plugins: [
+//   //   createPersistedState({
+//   //     key: 'deviceSocketState',
+//   //     storage: window.localStorage,
+//   //     paths: ['devices', 'logs', 'pingPong', 'socket']
+//   //   })
+//   // ]
+// })
+
+// export default socket_store;

@@ -148,6 +148,15 @@ export interface Socket {
     }
 }
 
+export interface Route {
+    path: string;
+    component: any;
+    meta: {
+        title: string,
+        roles: Array<string>
+    }
+}
+
 
 export default createStore({
     state: {
@@ -159,7 +168,7 @@ export default createStore({
             roles: [] as Array<Role>,
             isAuthenticated: false,
         } as User,
-        filteredRoutes: [] as Array<any>,
+        filteredRoutes: [] as Array<Route>,
         devices: [] as Array<Device>,
         logs: [] as Array<Log>,
         socket: {
@@ -340,7 +349,7 @@ export default createStore({
             const userRoles = state.user.roles.map(role => role.name);
             const filteredRoutes = router.options.routes.filter(route => {
                 if (route.meta && Array.isArray(route.meta.roles)) {
-                    return route.meta.roles.some(role => userRoles.includes(role));
+                    return route.meta.roles.some((role: string) => userRoles.includes(role));
                 }
                 return false;
             });
@@ -355,7 +364,7 @@ export default createStore({
         createPersistedState({
             key: 'app',
             storage: window.localStorage,
-            paths: ['user', 'filteredRoutes']
+            paths: ['user']
         })
     ]
 })

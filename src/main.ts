@@ -23,7 +23,7 @@ app.use(Antd)
     })
 
 if (store.getters.isAuthenticated) {
-    store.dispatch('filterRoutes');  // Filter routes on page reload if user is authenticated
+    store.dispatch('filterRoutes');
 }
 
 app.mount('#app');

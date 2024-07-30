@@ -48,7 +48,6 @@ const router = useRouter();
 const store = useStore();
 
 const handleOk = async () => {
-    modalText.value = 'The modal will be closed after two seconds';
     confirmLoading.value = true;
     if (formState.username && formState.password) {
         try {
@@ -64,15 +63,15 @@ const handleOk = async () => {
             });
             if (response.ok) {
                 const userInfo = await response.json()
-                // console.log(userInfo);
                 store.dispatch('login', userInfo);
-                // store.dispatch('filterRoutes', router);
+                store.dispatch('filterRoutes');
+                modalText.value = 'The modal will be closed after two seconds';
                 setTimeout(() => {
+                    confirmLoading.value = false;
                     closeModal();
                     router.push('/');
                 }, 2000);
-                // console.log(store.getters.user)
-                console.log(store.getters.routes)
+                console.log(store.getters.filteredRoutes)
             } else {
                 const errorData = await response.json();
                 alert(`Login failed:  ${errorData.detail}`);

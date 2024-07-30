@@ -2,6 +2,7 @@ import { createStore } from 'vuex';
 import createPersistedState from 'vuex-persistedstate';
 
 import app from "../main";
+import router from '../router/index';
 
 
 export interface DeviceStatus {
@@ -116,7 +117,21 @@ export interface User {
     name: string;
     email: string;
     disabled: boolean;
+    roles: Array<Role>;
     isAuthenticated: boolean;
+}
+
+export interface Role {
+    id: number;
+    name: string;
+    desc: string;
+    perms: Array<Perm>;
+}
+
+export interface Perm {
+    id: number;
+    name: string;
+    desc: string;
 }
 
 export interface Socket {
@@ -141,8 +156,10 @@ export default createStore({
             name: '',
             email: '',
             disabled: false,
+            roles: [] as Array<Role>,
             isAuthenticated: false,
         } as User,
+        filteredRoutes: [] as Array<any>,
         devices: [] as Array<Device>,
         logs: [] as Array<Log>,
         socket: {
@@ -287,11 +304,16 @@ export default createStore({
             state.socket.status.reconnectError = true;
         },
 
-        SET_USER(state: { user: User; }, user: User) {
+        SET_USER(state, user: User) {
             state.user = { ...user, isAuthenticated: true };
         },
-        LOGOUT(state: { user: User; }) {
-            state.user = { id: null, name: '', email: '', disabled: false, isAuthenticated: false };
+        LOGOUT(state) {
+            state.user = { id: null, name: '', email: '', disabled: false, roles: [], isAuthenticated: false };
+            state.filteredRoutes = [];
+        },
+
+        SET_FILTERED_ROUTES(state, routes) {
+            state.filteredRoutes = routes;
         },
     },
     getters: {
@@ -303,7 +325,8 @@ export default createStore({
         },
 
         isAuthenticated: (state) => state.user.isAuthenticated,
-        user: (state) => state.user
+        user: (state) => state.user,
+        filteredRoutes: (state) => state.filteredRoutes,
     },
     actions: {
         login({ commit }, userInfo: User) {
@@ -312,13 +335,27 @@ export default createStore({
         logout({ commit }) {
             commit('LOGOUT');
         },
+
+        filterRoutes({ state, commit }) {
+            const userRoles = state.user.roles.map(role => role.name);
+            const filteredRoutes = router.options.routes.filter(route => {
+                if (route.meta && Array.isArray(route.meta.roles)) {
+                    return route.meta.roles.some(role => userRoles.includes(role));
+                }
+                return false;
+            });
+            filteredRoutes.forEach(route => {
+                router.addRoute(route);
+            });
+            commit('SET_FILTERED_ROUTES', filteredRoutes);
+        },
     },
     modules: {},
     plugins: [
         createPersistedState({
             key: 'app',
             storage: window.localStorage,
-            paths: ['user', 'devices']
+            paths: ['user', 'filteredRoutes']
         })
     ]
 })

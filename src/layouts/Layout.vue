@@ -1,100 +1,94 @@
-<script lang="ts" setup>
-import { ref } from 'vue';
-import LoginModal from '../components/LoginModal.vue';
-
-const selectedKeys1 = ref<string[]>(['1']);
-const selectedKeys2 = ref<string[]>(['1']);
-const openKeys = ref<string[]>(['sub1']);
-
-const showLoginModal = ref<boolean>(false);
-
-const openLoginModal = () => {
-    showLoginModal.value = true;
-};
-
-const closeLoginModal = () => {
-    showLoginModal.value = false;
-};
-</script>
-
 <template>
     <a-layout>
         <a-layout-header class="header">
-            <div class="logo" />
-            <a-menu v-model:selectedKeys="selectedKeys1" theme="dark" mode="horizontal" :style="{ lineHeight: '64px' }">
-                <a-menu-item key="1">
-                    <nav>
-                        <router-link to="/">Home</router-link>
-                    </nav>
-                </a-menu-item>
-                <a-menu-item key="2">
-                    <nav>
-                        <router-link to="/device">Device</router-link>
-                    </nav>
-                </a-menu-item>
-                <a-menu-item key="3">
-                </a-menu-item>
-            </a-menu>
-            <div class="menu-right">
-                <a-button type="primary" @click="openLoginModal">Login</a-button>
+            <div class="header-right">
+                <a-avatar size="large" @click="openLoginModal">
+                    <template #icon>
+                        <AntDesignOutlined />
+                    </template>
+                </a-avatar>
             </div>
         </a-layout-header>
         <a-layout>
-            <a-layout-sider width="200" style="background: #fff">
-                <a-menu v-model:selectedKeys="selectedKeys2" v-model:openKeys="openKeys" mode="inline"
-                    :style="{ height: '100%', borderRight: 0 }">
-                    <a-sub-menu key="sub1">
-                        <template #title>
-                            <span>
-                                <user-outlined />
-                                subnav 1
-                            </span>
-                        </template>
-                        <a-menu-item key="1">option1</a-menu-item>
-                        <a-menu-item key="2">option2</a-menu-item>
-                        <a-menu-item key="3">option3</a-menu-item>
-                        <a-menu-item key="4">option4</a-menu-item>
-                    </a-sub-menu>
-                    <a-sub-menu key="sub2">
-                        <template #title>
-                            <span>
-                                <laptop-outlined />
-                                subnav 2
-                            </span>
-                        </template>
-                        <a-menu-item key="5">option5</a-menu-item>
-                        <a-menu-item key="6">option6</a-menu-item>
-                        <a-menu-item key="7">option7</a-menu-item>
-                        <a-menu-item key="8">option8</a-menu-item>
-                    </a-sub-menu>
-                    <a-sub-menu key="sub3">
-                        <template #title>
-                            <span>
-                                <notification-outlined />
-                                subnav 3
-                            </span>
-                        </template>
-                        <a-menu-item key="9">option9</a-menu-item>
-                        <a-menu-item key="10">option10</a-menu-item>
-                        <a-menu-item key="11">option11</a-menu-item>
-                        <a-menu-item key="12">option12</a-menu-item>
-                    </a-sub-menu>
-                </a-menu>
+            <a-layout-sider theme="light">
+                <a-menu
+                    id="sider-menu"
+                    v-model:openKeys="openKeys"
+                    v-model:selectedKeys="selectedKeys"
+                    style="width: 256px"
+                    mode="inline"
+                    :items="items"
+                    @click="handleClick"
+                ></a-menu>
             </a-layout-sider>
-            <a-layout style="padding: 0 24px 24px">
-                <a-breadcrumb style="margin: 16px 0">
-                    <a-breadcrumb-item>Home</a-breadcrumb-item>
-                    <a-breadcrumb-item>List</a-breadcrumb-item>
-                    <a-breadcrumb-item>App</a-breadcrumb-item>
-                </a-breadcrumb>
-                <a-layout-content :style="{ background: '#fff', padding: '24px', margin: 0, minHeight: '800px' }">
-                    <router-view></router-view>
-                </a-layout-content>
-            </a-layout>
+            <a-layout-content>
+                <router-view />
+            </a-layout-content>
+            <a-layout-footer>Footer</a-layout-footer>
             <LoginModal :open="showLoginModal" :onClose="closeLoginModal"></LoginModal>
         </a-layout>
     </a-layout>
 </template>
+
+<script lang="ts" setup>
+import { ref, reactive, h, watch } from 'vue';
+import { useStore } from 'vuex';
+import { useRouter } from 'vue-router';
+import { AntDesignOutlined, MailOutlined, AppstoreOutlined, SettingOutlined } from '@ant-design/icons-vue';
+import type { MenuProps, ItemType } from 'ant-design-vue';
+import LoginModal from '../components/LoginModal.vue';
+
+const showLoginModal = ref<boolean>(false);
+const openLoginModal = () => {
+    showLoginModal.value = true;
+};
+const closeLoginModal = () => {
+    showLoginModal.value = false;
+};
+
+const store = useStore();
+const router = useRouter();
+
+const selectedKeys = ref<string[]>([]);
+const openKeys = ref<string[]>([]);
+
+function getItem(
+  label: string,
+  key: string,
+  icon?: any,
+  children?: ItemType[],
+  type?: 'group',
+): ItemType {
+  return {
+    key,
+    icon,
+    children,
+    label,
+    type,
+  } as ItemType;
+}
+
+function routeToMenuItem(route) {
+  return getItem(route.meta.title, route.path, route.meta.icon ? () => h(route.meta.icon) : null);
+}
+
+const items: ItemType[] = reactive([]);
+
+const filteredRoutes = store.getters.filteredRoutes;
+filteredRoutes.forEach(route => {
+  items.push(routeToMenuItem(route));
+});
+
+const handleClick: MenuProps['onClick'] = e => {
+  console.log('click', e);
+  const path = e.key as string;  // Ensure key is a string
+  router.push(path);
+};
+
+watch(openKeys, val => {
+  console.log('openKeys', val);
+});
+</script>
 
 <style scoped>
 .header {
@@ -103,36 +97,7 @@ const closeLoginModal = () => {
     justify-content: space-between;
 }
 
-/* .logo {
-    float: left;
-    width: 120px;
-    height: 31px;
-    margin: 16px 24px 16px 0;
-    background: rgba(255, 255, 255, 0.3);
-} */
-
-.menu {
-    flex: 1;
-}
-
-.menu-right {
+.header-right {
     margin-left: auto;
-}
-
-#components-layout-demo-top-side-2 .logo {
-    float: left;
-    width: 120px;
-    height: 31px;
-    margin: 16px 24px 16px 0;
-    background: rgba(255, 255, 255, 0.3);
-}
-
-.ant-row-rtl #components-layout-demo-top-side-2 .logo {
-    float: right;
-    margin: 16px 0 16px 24px;
-}
-
-.site-layout-background {
-    background: #fff;
 }
 </style>

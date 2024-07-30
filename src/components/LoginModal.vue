@@ -1,6 +1,6 @@
 <!-- loginModal.vue -->
 <script lang="ts" setup>
-import { computed, reactive, ref } from 'vue';
+import { reactive, ref } from 'vue';
 import { UserOutlined, LockOutlined } from '@ant-design/icons-vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
@@ -64,12 +64,15 @@ const handleOk = async () => {
             });
             if (response.ok) {
                 const userInfo = await response.json()
+                // console.log(userInfo);
                 store.dispatch('login', userInfo);
+                // store.dispatch('filterRoutes', router);
                 setTimeout(() => {
                     closeModal();
                     router.push('/');
                 }, 2000);
-                console.log(store.getters.user)
+                // console.log(store.getters.user)
+                console.log(store.getters.routes)
             } else {
                 const errorData = await response.json();
                 alert(`Login failed:  ${errorData.detail}`);

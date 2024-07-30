@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
 import { useStore } from 'vuex';
-import { Device, PropertyMetaData, CommandMetaData } from '../store/socket';
+import { Device, PropertyMetaData, CommandMetaData } from '../store/index';
 
 
 const confirmLoading = ref<boolean>(false);

@@ -5,8 +5,7 @@
 <template>
   <div class="card">
     <p>
-      HelloWorld
-      <code>components/HelloWorld.vue</code> to test HMR
+      Home
     </p>
   </div>
 </template>

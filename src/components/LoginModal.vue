@@ -64,14 +64,12 @@ const handleOk = async () => {
             if (response.ok) {
                 const userInfo = await response.json()
                 store.dispatch('login', userInfo);
-                store.dispatch('filterRoutes');
-                modalText.value = 'The modal will be closed after two seconds';
+                modalText.value = 'The modal will be closed after 1 second';
                 setTimeout(() => {
                     confirmLoading.value = false;
                     closeModal();
                     router.push('/');
-                }, 2000);
-                console.log(store.getters.filteredRoutes)
+                }, 1000);
             } else {
                 const errorData = await response.json();
                 alert(`Login failed:  ${errorData.detail}`);

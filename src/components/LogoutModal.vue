@@ -26,15 +26,13 @@ const store = useStore();
 
 const handleOk = async () => {
     confirmLoading.value = true;
-    if (store.getters.user.isAuthenticated) {
+    if (store.getters.user.isLogedIn) {
         store.dispatch('logout');
-        store.dispatch('filterRoutes');
-        modalText.value = 'The modal will be closed after two seconds';
+        modalText.value = 'The modal will be closed after 1 second';
         setTimeout(() => {
             confirmLoading.value = false;
             closeModal();
-        }, 2000);
-        console.log(store.getters.filteredRoutes);
+        }, 1000);
     };
 };
 </script>

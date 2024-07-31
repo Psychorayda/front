@@ -1,11 +1,11 @@
 <script setup lang="ts">
+
 </script>
 
 <template>
-
   <div class="card">
     <p>
-      Not Found
+      ADD
     </p>
   </div>
 </template>

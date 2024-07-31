@@ -3,6 +3,7 @@ import createPersistedState from 'vuex-persistedstate';
 
 import app from "../main";
 import router from '../router/index';
+import { RouteRecordRaw } from 'vue-router';
 
 
 export interface DeviceStatus {
@@ -118,7 +119,8 @@ export interface User {
     email: string;
     disabled: boolean;
     roles: Array<Role>;
-    isAuthenticated: boolean;
+    isLogedIn: boolean;
+    routes: Array<RouteRecordRaw>;
 }
 
 export interface Role {
@@ -148,15 +150,6 @@ export interface Socket {
     }
 }
 
-export interface Route {
-    path: string;
-    component: any;
-    meta: {
-        title: string,
-        roles: Array<string>
-    }
-}
-
 
 export default createStore({
     state: {
@@ -166,9 +159,9 @@ export default createStore({
             email: '',
             disabled: false,
             roles: [] as Array<Role>,
-            isAuthenticated: false,
+            isLogedIn: false,
+            routes: [] as Array<RouteRecordRaw>,
         } as User,
-        filteredRoutes: [] as Array<Route>,
         devices: [] as Array<Device>,
         logs: [] as Array<Log>,
         socket: {
@@ -314,15 +307,14 @@ export default createStore({
         },
 
         SET_USER(state, user: User) {
-            state.user = { ...user, isAuthenticated: true };
+            state.user = { ...user, isLogedIn: true };
         },
         LOGOUT(state) {
-            state.user = { id: null, name: '', email: '', disabled: false, roles: [], isAuthenticated: false };
-            state.filteredRoutes = [];
+            state.user = { id: null, name: '', email: '', disabled: false, roles: [], isLogedIn: false, routes: [] };
         },
 
         SET_FILTERED_ROUTES(state, routes) {
-            state.filteredRoutes = routes;
+            state.user.routes = routes;
         },
     },
     getters: {
@@ -333,26 +325,41 @@ export default createStore({
             return state.logs
         },
 
-        isAuthenticated: (state) => state.user.isAuthenticated,
+        isLogedIn: (state) => state.user.isLogedIn,
         user: (state) => state.user,
-        filteredRoutes: (state) => state.filteredRoutes,
+        routes: (state) => state.user.routes,
     },
     actions: {
-        login({ commit }, userInfo: User) {
-            commit('SET_USER', userInfo);
+        login({ state, commit }, user: User) {
+            commit('SET_USER', user);
+            const userRoles = state.user.roles.map(role => role.name);
+            let filteredRoutes: Array<RouteRecordRaw> = [];
+
+            function filterRoutes(routes: Array<RouteRecordRaw>): Array<RouteRecordRaw> {
+                return routes.filter(route => {
+                    if (route.meta && Array.isArray(route.meta.roles)) {
+                        if (route.meta.roles.some((role: string) => userRoles.includes(role))) {
+                            if (route.children) {
+                                route.children = filterRoutes(route.children);
+                            }
+                            return true;
+                        }
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            filteredRoutes = filterRoutes([...router.options.routes]);
+            commit('SET_FILTERED_ROUTES', filteredRoutes);
+
+            filteredRoutes.forEach(route => {
+                router.addRoute(route);
+            });
         },
         logout({ commit }) {
             commit('LOGOUT');
-        },
-
-        filterRoutes({ state, commit }) {
-            const userRoles = state.user.roles.map(role => role.name);
-            const filteredRoutes = router.options.routes.filter(route => {
-                if (route.meta && Array.isArray(route.meta.roles)) {
-                    return route.meta.roles.some((role: string) => userRoles.includes(role));
-                }
-                return false;
-            });
+            const filteredRoutes = router.options.routes.filter(route => route.path == '/');
             filteredRoutes.forEach(route => {
                 router.addRoute(route);
             });

@@ -6,7 +6,7 @@ import Antd from 'ant-design-vue';
 import 'ant-design-vue/dist/reset.css';
 import VueNativeSock from 'vue-native-websocket-vue3';
 
-import router from './router';
+import router from './router/index';
 import store from './store/index'
 
 
@@ -21,10 +21,6 @@ app.use(Antd)
         reconnectionAttempts: 5,
         reconnectionDelay: 3000
     })
-
-if (store.getters.isAuthenticated) {
-    store.dispatch('filterRoutes');
-}
 
 app.mount('#app');
 

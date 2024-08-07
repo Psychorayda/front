@@ -4,6 +4,8 @@ import { reactive, ref } from 'vue';
 import { UserOutlined, LockOutlined } from '@ant-design/icons-vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
+import { message } from 'ant-design-vue';
+
 
 interface FormState {
     username: string;
@@ -44,8 +46,9 @@ const closeModal = () => {
 //     formState.password = '';
 // };
 
-const router = useRouter();
+const router = useRouter();``
 const store = useStore();
+
 
 const handleOk = async () => {
     confirmLoading.value = true;
@@ -70,10 +73,13 @@ const handleOk = async () => {
                     closeModal();
                     router.push('/');
                 }, 1000);
+                message.success(`User: ${formState.username} Login Success!`, 3);
             } else {
                 const errorData = await response.json();
-                alert(`Login failed:  ${errorData.detail}`);
-                confirmLoading.value = false;
+                setTimeout(() => {
+                    confirmLoading.value = false;
+                }, 1000);
+                message.error(`Login failed:  ${errorData.detail}`, 3);
             }
         } catch (error) {
             console.error('Error:', error);

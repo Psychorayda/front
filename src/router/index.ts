@@ -10,32 +10,54 @@ const routes = [
         component: () => import('../components/Home.vue'),
         meta: {
             title: 'Home',
+            desc: "home page",
             roles: ['user', 'admin']
         }
     },
     {
-        path: '/device',
-        component: () => import('../pages/DevicePage.vue'),
+        path: '/DeviceModule',
         meta: {
-            title: 'Device',
-            roles: ['admin'],
-        }
-    },
-    {
-        path: '/add',
-        component: () => import('../pages/DeviceAddPage.vue'),
-        meta: {
-            title: 'Add',
+            title: 'DeviceModule',
+            desc: "for device module mune create",
             roles: ['admin'],
         },
         children: [
             {
-                path: '1',
-                component: () => import('../pages/DeviceAddPage1.vue'),
+                path: '/device',
+                component: () => import('../pages/DevicePage.vue'),
                 meta: {
-                    title: 'Add1',
+                    title: 'device',
+                    desc: "device page",
                     roles: ['admin'],
                 },
+            },
+            {
+                path: '/AddModule',
+                meta: {
+                    title: 'AddModule',
+                    desc: "",
+                    roles: ['admin'],
+                },
+                children: [
+                    {
+                        path: '/device/add',
+                        component: () => import('../pages/DeviceAddPage.vue'),
+                        meta: {
+                            title: 'Add',
+                            desc: "",
+                            roles: ['admin'],
+                        },
+                    },
+                    {
+                        path: '/device/add/1',
+                        component: () => import('../pages/DeviceAddPage1.vue'),
+                        meta: {
+                            title: 'Add1',
+                            desc: "",
+                            roles: ['admin'],
+                        },
+                    },
+                ]
             },
         ]
     },

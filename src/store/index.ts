@@ -4,6 +4,8 @@ import createPersistedState from 'vuex-persistedstate';
 import app from "../main";
 import router from '../router/index';
 import { RouteRecordRaw } from 'vue-router';
+import { logicalPropertiesLinter } from 'ant-design-vue';
+import { notification } from 'ant-design-vue';
 
 
 export interface DeviceStatus {
@@ -183,6 +185,13 @@ export default createStore({
             app.config.globalProperties.$socket = event.currentTarget;
             state.socket.status.isConnected = true;
             console.log("SOCKET_ONOPEN");
+            if (state.socket.status.isConnected) {
+                app.config.globalProperties.$socket.send(
+                    JSON.stringify({
+                        route: "ALL"
+                    })
+                );
+            }
             let count = 0;
             state.socket.status.heartBeatTimer = setInterval(() => {
                 const now = new Date();
@@ -222,10 +231,18 @@ export default createStore({
                                 props: [],
                                 commands: []
                             });
+                            notification.open({
+                                message: `Device: ${parsedMessage.data.deviceName} Online`,
+                                placement: 'bottomRight',
+                            });
                         }
                     } else {
                         if (existingDevice) {
                             state.devices = state.devices.filter(device => device.deviceName !== parsedMessage.data.deviceName);
+                            notification.open({
+                                message: `Device: ${parsedMessage.data.deviceName} Offline`,
+                                placement: 'bottomRight',
+                            });
                         }
                     }
                 } else if (parsedMessage.route == "STATUS") {
@@ -234,6 +251,10 @@ export default createStore({
                             statusInt: parsedMessage.data.statusInt,
                             statusStr: parsedMessage.data.statusStr
                         };
+                        notification.open({
+                            message: `Device: ${parsedMessage.data.deviceName} Status: ${parsedMessage.data.statusStr}`,
+                            placement: 'bottomRight',
+                        });
                     }
                 } else if (parsedMessage.route == "META") {
                     if (existingDevice) {
@@ -259,7 +280,15 @@ export default createStore({
                         }));
                     }
                 } else if (parsedMessage.route == "LOG") {
+                    if (parsedMessage.data.level == "INFO") {
+                        parsedMessage.data.level = 'info';
+                    } else if (parsedMessage.data.level == "WARN") {
+                        parsedMessage.data.level = 'warning';
+                    } else if (parsedMessage.data.level == "ERROR") {
+                        parsedMessage.data.level = 'error';
+                    }
                     state.logs.push(parsedMessage.data);
+                    // console.log(parsedMessage.data.level)
                 } else if (parsedMessage.route == "PING") {
                     state.socket.pingPong.ping = parsedMessage.data;
                     const now = new Date();
@@ -324,6 +353,7 @@ export default createStore({
         deviceLogs: (state) => {
             return state.logs
         },
+        currDevLog: (state) => state.logs[state.logs.length - 1],
 
         isLogedIn: (state) => state.user.isLogedIn,
         user: (state) => state.user,

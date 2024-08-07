@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
 import { useStore } from 'vuex';
+import { message } from 'ant-design-vue';
+
 import { Device, PropertyMetaData, CommandMetaData } from '../store/index';
 
 
@@ -74,22 +76,22 @@ const handleSetOk = async () => {
                 },
             });
             if (response.ok) {
+                message.success(`Set Device: ${selectedTab.value} Property: ${selectedProp.value} Success!`, 3);
                 setTimeout(() => {
                     confirmLoading.value = false;
                     openSetPropModal.value = false;
                     currPropInput.value = null;
                     selectedProp.value = null;
                 }, 1000);
-                alert("Property set OK");
             } else {
                 const errorData = await response.json();
+                message.error(`Set Device: ${selectedTab.value} Property: ${selectedProp.value} Failed!\nReason: ${errorData.detail}`, 3);
                 setTimeout(() => {
                     confirmLoading.value = false;
                     openSetPropModal.value = false;
                     currPropInput.value = null;
                     selectedProp.value = null;
                 }, 2000);
-                alert(`Property set failed: ${errorData.detail}`);
             }
         } catch (error) {
             console.error('Error:', error);

@@ -1,7 +1,9 @@
-<!-- loginModal.vue -->
+<!-- logoutModal.vue -->
 <script lang="ts" setup>
 import { ref } from 'vue';
 import { useStore } from 'vuex';
+import { useRouter } from 'vue-router';
+import { message } from 'ant-design-vue';
 
 
 const onFinish = (values: any) => {
@@ -23,16 +25,19 @@ const closeModal = () => {
 };
 
 const store = useStore();
+const router = useRouter();
 
 const handleOk = async () => {
     confirmLoading.value = true;
     if (store.getters.user.isLogedIn) {
         store.dispatch('logout');
+        router.push('/');
         modalText.value = 'The modal will be closed after 1 second';
         setTimeout(() => {
             confirmLoading.value = false;
             closeModal();
         }, 1000);
+        message.success(`User Logout Success!`, 3);
     };
 };
 </script>
